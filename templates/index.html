@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internship Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>Internship Tracker</h1>
+            <p class="subtitle">Track applications, interviews, offers, and deadlines in one place.</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="stat-card"><h3>Total</h3><p>{{ total_count }}</p></div>
+            <div class="stat-card"><h3>Saved</h3><p>{{ saved_count }}</p></div>
+            <div class="stat-card"><h3>Applied</h3><p>{{ applied_count }}</p></div>
+            <div class="stat-card"><h3>Interview</h3><p>{{ interview_count }}</p></div>
+            <div class="stat-card"><h3>Rejected</h3><p>{{ rejected_count }}</p></div>
+            <div class="stat-card"><h3>Offer</h3><p>{{ offer_count }}</p></div>
+        </div>
+
+        <div class="section-header">
+            <h2>Add New Internship</h2>
+        </div>
+
+        <form action="/add" method="POST" class="internship-form">
+            <input type="text" name="company" placeholder="Company Name" required>
+            <input type="text" name="role" placeholder="Role Title" required>
+
+            <select name="status" required>
+                <option value="">Select Status</option>
+                <option value="Saved">Saved</option>
+                <option value="Applied">Applied</option>
+                <option value="Interview">Interview</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Offer">Offer</option>
+            </select>
+
+            <input type="date" name="deadline" required>
+            <textarea name="notes" placeholder="Notes" rows="4"></textarea>
+
+            <button type="submit">Add Internship</button>
+        </form>
+
+        <div class="section-header">
+            <h2>Internship List</h2>
+        </div>
+
+        <form action="/" method="GET" class="filter-form">
+            <label for="search"><strong>Search by company or role:</strong></label>
+            <input type="text" name="search" id="search" placeholder="e.g. Google, Software Engineer" value="{{ search_query }}">
+
+            <label for="status"><strong>Filter by status:</strong></label>
+            <select name="status" id="status">
+                <option value="All" {% if selected_status == "All" or selected_status == "" %}selected{% endif %}>All</option>
+                <option value="Saved" {% if selected_status == "Saved" %}selected{% endif %}>Saved</option>
+                <option value="Applied" {% if selected_status == "Applied" %}selected{% endif %}>Applied</option>
+                <option value="Interview" {% if selected_status == "Interview" %}selected{% endif %}>Interview</option>
+                <option value="Rejected" {% if selected_status == "Rejected" %}selected{% endif %}>Rejected</option>
+                <option value="Offer" {% if selected_status == "Offer" %}selected{% endif %}>Offer</option>
+            </select>
+
+            <button type="submit">Apply Search / Filter</button>
+        </form>
+
+        {% if internships %}
+            <div class="internship-list">
+                {% for internship in internships %}
+                    <div class="card">
+                        <div class="card-top">
+                            <div>
+                                <h3>{{ internship.company }}</h3>
+                                <p class="role-line">{{ internship.role }}</p>
+                            </div>
+
+                            <span class="status-badge status-{{ internship.status|lower }}">
+                                {{ internship.status }}
+                            </span>
+                        </div>
+
+                        <p><strong>Deadline:</strong> {{ internship.deadline }}</p>
+                        <p><strong>Notes:</strong> {{ internship.notes }}</p>
+
+                        <div class="button-group">
+                            <a href="/edit/{{ internship.id }}" class="edit-link">Edit</a>
+
+                            <form action="/delete/{{ internship.id }}" method="POST">
+                                <button type="submit" class="delete-btn">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No internships found for this search or filter.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
