@@ -27,6 +27,7 @@ def init_db():
 def home():
     selected_status = request.args.get("status", "")
     search_query = request.args.get("search", "").strip()
+    sort_order = request.args.get("sort", "newest")
 
     conn = get_db_connection()
 
@@ -49,7 +50,12 @@ def home():
         params.append(f"%{search_query}%")
         params.append(f"%{search_query}%")
 
-    query += " ORDER BY id DESC"
+    if sort_order == "deadline_asc":
+        query += " ORDER BY deadline ASC"
+    elif sort_order == "deadline_desc":
+        query += " ORDER BY deadline DESC"
+    else:
+        query += " ORDER BY id DESC"
 
     internships = conn.execute(query, params).fetchall()
     conn.close()
@@ -59,6 +65,7 @@ def home():
         internships=internships,
         selected_status=selected_status,
         search_query=search_query,
+        sort_order=sort_order,
         total_count=total_count,
         saved_count=saved_count,
         applied_count=applied_count,

@@ -1,102 +1,132 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Internship Tracker</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="hero">
-            <h1>Internship Tracker</h1>
-            <p class="subtitle">Track applications, interviews, offers, and deadlines in one place.</p>
-        </div>
+from flask import Flask, render_template, request, redirect
+import sqlite3
 
-        <div class="dashboard">
-            <div class="stat-card"><h3>Total</h3><p>{{ total_count }}</p></div>
-            <div class="stat-card"><h3>Saved</h3><p>{{ saved_count }}</p></div>
-            <div class="stat-card"><h3>Applied</h3><p>{{ applied_count }}</p></div>
-            <div class="stat-card"><h3>Interview</h3><p>{{ interview_count }}</p></div>
-            <div class="stat-card"><h3>Rejected</h3><p>{{ rejected_count }}</p></div>
-            <div class="stat-card"><h3>Offer</h3><p>{{ offer_count }}</p></div>
-        </div>
+app = Flask(__name__)
 
-        <div class="section-header">
-            <h2>Add New Internship</h2>
-        </div>
+def get_db_connection():
+    conn = sqlite3.connect("internships.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
-        <form action="/add" method="POST" class="internship-form">
-            <input type="text" name="company" placeholder="Company Name" required>
-            <input type="text" name="role" placeholder="Role Title" required>
+def init_db():
+    conn = get_db_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS internships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company TEXT NOT NULL,
+            role TEXT NOT NULL,
+            status TEXT NOT NULL,
+            deadline TEXT NOT NULL,
+            notes TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-            <select name="status" required>
-                <option value="">Select Status</option>
-                <option value="Saved">Saved</option>
-                <option value="Applied">Applied</option>
-                <option value="Interview">Interview</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Offer">Offer</option>
-            </select>
+@app.route("/")
+def home():
+    selected_status = request.args.get("status", "")
+    search_query = request.args.get("search", "").strip()
+    sort_order = request.args.get("sort", "newest")
 
-            <input type="date" name="deadline" required>
-            <textarea name="notes" placeholder="Notes" rows="4"></textarea>
+    conn = get_db_connection()
 
-            <button type="submit">Add Internship</button>
-        </form>
+    total_count = conn.execute("SELECT COUNT(*) FROM internships").fetchone()[0]
+    saved_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Saved'").fetchone()[0]
+    applied_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Applied'").fetchone()[0]
+    interview_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Interview'").fetchone()[0]
+    rejected_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Rejected'").fetchone()[0]
+    offer_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Offer'").fetchone()[0]
 
-        <div class="section-header">
-            <h2>Internship List</h2>
-        </div>
+    query = "SELECT * FROM internships WHERE 1=1"
+    params = []
 
-        <form action="/" method="GET" class="filter-form">
-            <label for="search"><strong>Search by company or role:</strong></label>
-            <input type="text" name="search" id="search" placeholder="e.g. Google, Software Engineer" value="{{ search_query }}">
+    if selected_status and selected_status != "All":
+        query += " AND status = ?"
+        params.append(selected_status)
 
-            <label for="status"><strong>Filter by status:</strong></label>
-            <select name="status" id="status">
-                <option value="All" {% if selected_status == "All" or selected_status == "" %}selected{% endif %}>All</option>
-                <option value="Saved" {% if selected_status == "Saved" %}selected{% endif %}>Saved</option>
-                <option value="Applied" {% if selected_status == "Applied" %}selected{% endif %}>Applied</option>
-                <option value="Interview" {% if selected_status == "Interview" %}selected{% endif %}>Interview</option>
-                <option value="Rejected" {% if selected_status == "Rejected" %}selected{% endif %}>Rejected</option>
-                <option value="Offer" {% if selected_status == "Offer" %}selected{% endif %}>Offer</option>
-            </select>
+    if search_query:
+        query += " AND (company LIKE ? OR role LIKE ?)"
+        params.append(f"%{search_query}%")
+        params.append(f"%{search_query}%")
 
-            <button type="submit">Apply Search / Filter</button>
-        </form>
+    if sort_order == "deadline_asc":
+        query += " ORDER BY deadline ASC"
+    elif sort_order == "deadline_desc":
+        query += " ORDER BY deadline DESC"
+    else:
+        query += " ORDER BY id DESC"
 
-        {% if internships %}
-            <div class="internship-list">
-                {% for internship in internships %}
-                    <div class="card">
-                        <div class="card-top">
-                            <div>
-                                <h3>{{ internship.company }}</h3>
-                                <p class="role-line">{{ internship.role }}</p>
-                            </div>
+    internships = conn.execute(query, params).fetchall()
+    conn.close()
 
-                            <span class="status-badge status-{{ internship.status|lower }}">
-                                {{ internship.status }}
-                            </span>
-                        </div>
+    return render_template(
+        "index.html",
+        internships=internships,
+        selected_status=selected_status,
+        search_query=search_query,
+        sort_order=sort_order,
+        total_count=total_count,
+        saved_count=saved_count,
+        applied_count=applied_count,
+        interview_count=interview_count,
+        rejected_count=rejected_count,
+        offer_count=offer_count
+    )
 
-                        <p><strong>Deadline:</strong> {{ internship.deadline }}</p>
-                        <p><strong>Notes:</strong> {{ internship.notes }}</p>
+@app.route("/add", methods=["POST"])
+def add_internship():
+    company = request.form["company"]
+    role = request.form["role"]
+    status = request.form["status"]
+    deadline = request.form["deadline"]
+    notes = request.form["notes"]
 
-                        <div class="button-group">
-                            <a href="/edit/{{ internship.id }}" class="edit-link">Edit</a>
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO internships (company, role, status, deadline, notes) VALUES (?, ?, ?, ?, ?)",
+        (company, role, status, deadline, notes)
+    )
+    conn.commit()
+    conn.close()
 
-                            <form action="/delete/{{ internship.id }}" method="POST">
-                                <button type="submit" class="delete-btn">Delete</button>
-                            </form>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p>No internships found for this search or filter.</p>
-        {% endif %}
-    </div>
-</body>
-</html>
+    return redirect("/")
+
+@app.route("/delete/<int:id>", methods=["POST"])
+def delete_internship(id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM internships WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+
+    return redirect("/")
+
+@app.route("/edit/<int:id>")
+def edit_internship(id):
+    conn = get_db_connection()
+    internship = conn.execute("SELECT * FROM internships WHERE id = ?", (id,)).fetchone()
+    conn.close()
+    return render_template("edit.html", internship=internship)
+
+@app.route("/update/<int:id>", methods=["POST"])
+def update_internship(id):
+    company = request.form["company"]
+    role = request.form["role"]
+    status = request.form["status"]
+    deadline = request.form["deadline"]
+    notes = request.form["notes"]
+
+    conn = get_db_connection()
+    conn.execute("""
+        UPDATE internships
+        SET company = ?, role = ?, status = ?, deadline = ?, notes = ?
+        WHERE id = ?
+    """, (company, role, status, deadline, notes, id))
+    conn.commit()
+    conn.close()
+
+    return redirect("/")
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True)
