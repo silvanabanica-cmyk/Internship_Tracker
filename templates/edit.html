@@ -2,33 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Internship</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Edit Internship</h1>
 
-        <form action="/update/{{ internship.id }}" method="POST" class="internship-form">
-            <input type="text" name="company" value="{{ internship.company }}" required>
-            <input type="text" name="role" value="{{ internship.role }}" required>
+    <main class="app-shell edit-shell">
+        <section class="hero-card">
+            <div>
+                <p class="eyebrow">Update application</p>
+                <h1>Edit Internship</h1>
+                <p class="subtitle">
+                    Adjust role details, deadline, status, or notes for this application.
+                </p>
+            </div>
 
-            <select name="status" required>
-                <option value="Saved" {% if internship.status == 'Saved' %}selected{% endif %}>Saved</option>
-                <option value="Applied" {% if internship.status == 'Applied' %}selected{% endif %}>Applied</option>
-                <option value="Interview" {% if internship.status == 'Interview' %}selected{% endif %}>Interview</option>
-                <option value="Rejected" {% if internship.status == 'Rejected' %}selected{% endif %}>Rejected</option>
-                <option value="Offer" {% if internship.status == 'Offer' %}selected{% endif %}>Offer</option>
-            </select>
+            <a class="ghost-link" href="{{ url_for('home') }}">
+                Back to tracker
+            </a>
+        </section>
 
-            <input type="date" name="deadline" value="{{ internship.deadline }}" required>
-            <textarea name="notes" rows="4">{{ internship.notes }}</textarea>
+        <section class="edit-card">
+            <form method="POST" action="{{ url_for('update_internship', id=internship['id']) }}" class="stack-form">
+                <label>
+                    Company
+                    <input
+                        type="text"
+                        name="company"
+                        value="{{ internship['company'] }}"
+                        required
+                    >
+                </label>
 
-            <button type="submit">Update Internship</button>
-        </form>
+                <label>
+                    Role
+                    <input
+                        type="text"
+                        name="role"
+                        value="{{ internship['role'] }}"
+                        required
+                    >
+                </label>
 
-        <p><a href="/">Back to Home</a></p>
-    </div>
+                <label>
+                    Status
+                    <select name="status" required>
+                        <option value="Saved" {% if internship["status"] == "Saved" %}selected{% endif %}>Saved</option>
+                        <option value="Applied" {% if internship["status"] == "Applied" %}selected{% endif %}>Applied</option>
+                        <option value="Interview" {% if internship["status"] == "Interview" %}selected{% endif %}>Interview</option>
+                        <option value="Rejected" {% if internship["status"] == "Rejected" %}selected{% endif %}>Rejected</option>
+                        <option value="Offer" {% if internship["status"] == "Offer" %}selected{% endif %}>Offer</option>
+                    </select>
+                </label>
+
+                <label>
+                    Deadline
+                    <input
+                        type="date"
+                        name="deadline"
+                        value="{{ internship['deadline'] }}"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Notes
+                    <textarea name="notes">{{ internship["notes"] }}</textarea>
+                </label>
+
+                <button type="submit">Save changes</button>
+            </form>
+        </section>
+    </main>
+
 </body>
 </html>

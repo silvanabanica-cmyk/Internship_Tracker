@@ -1,132 +1,201 @@
-from flask import Flask, render_template, request, redirect
-import sqlite3
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Internship Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 
-app = Flask(__name__)
+    <main class="app-shell">
+        <section class="hero-card">
+            <div>
+                <p class="eyebrow">Application Command Center</p>
+                <h1>Internship Tracker</h1>
+                <p class="subtitle">
+                    Organize applications, monitor deadlines, and track your internship pipeline from saved to offer.
+                </p>
+            </div>
 
-def get_db_connection():
-    conn = sqlite3.connect("internships.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+            <div class="hero-meta">
+                <span>{{ total_count }} applications</span>
+                <span>{{ offer_rate }}% offer rate</span>
+            </div>
+        </section>
 
-def init_db():
-    conn = get_db_connection()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS internships (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company TEXT NOT NULL,
-            role TEXT NOT NULL,
-            status TEXT NOT NULL,
-            deadline TEXT NOT NULL,
-            notes TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+        <section class="stats-grid">
+            <div class="stat-card total">
+                <span>Total</span>
+                <strong>{{ total_count }}</strong>
+            </div>
 
-@app.route("/")
-def home():
-    selected_status = request.args.get("status", "")
-    search_query = request.args.get("search", "").strip()
-    sort_order = request.args.get("sort", "newest")
+            <div class="stat-card">
+                <span>Saved</span>
+                <strong>{{ saved_count }}</strong>
+            </div>
 
-    conn = get_db_connection()
+            <div class="stat-card">
+                <span>Applied</span>
+                <strong>{{ applied_count }}</strong>
+            </div>
 
-    total_count = conn.execute("SELECT COUNT(*) FROM internships").fetchone()[0]
-    saved_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Saved'").fetchone()[0]
-    applied_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Applied'").fetchone()[0]
-    interview_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Interview'").fetchone()[0]
-    rejected_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Rejected'").fetchone()[0]
-    offer_count = conn.execute("SELECT COUNT(*) FROM internships WHERE status = 'Offer'").fetchone()[0]
+            <div class="stat-card">
+                <span>Interview</span>
+                <strong>{{ interview_count }}</strong>
+            </div>
 
-    query = "SELECT * FROM internships WHERE 1=1"
-    params = []
+            <div class="stat-card">
+                <span>Rejected</span>
+                <strong>{{ rejected_count }}</strong>
+            </div>
 
-    if selected_status and selected_status != "All":
-        query += " AND status = ?"
-        params.append(selected_status)
+            <div class="stat-card success">
+                <span>Offer</span>
+                <strong>{{ offer_count }}</strong>
+            </div>
 
-    if search_query:
-        query += " AND (company LIKE ? OR role LIKE ?)"
-        params.append(f"%{search_query}%")
-        params.append(f"%{search_query}%")
+            <div class="stat-card highlight">
+                <span>Interview Rate</span>
+                <strong>{{ interview_rate }}%</strong>
+            </div>
 
-    if sort_order == "deadline_asc":
-        query += " ORDER BY deadline ASC"
-    elif sort_order == "deadline_desc":
-        query += " ORDER BY deadline DESC"
-    else:
-        query += " ORDER BY id DESC"
+            <div class="stat-card highlight">
+                <span>Offer Rate</span>
+                <strong>{{ offer_rate }}%</strong>
+            </div>
+        </section>
 
-    internships = conn.execute(query, params).fetchall()
-    conn.close()
+        <section class="workspace">
+            <aside class="side-panel">
+                <div class="panel-title">
+                    <p class="eyebrow">New application</p>
+                    <h2>Add Internship</h2>
+                </div>
 
-    return render_template(
-        "index.html",
-        internships=internships,
-        selected_status=selected_status,
-        search_query=search_query,
-        sort_order=sort_order,
-        total_count=total_count,
-        saved_count=saved_count,
-        applied_count=applied_count,
-        interview_count=interview_count,
-        rejected_count=rejected_count,
-        offer_count=offer_count
-    )
+                <form method="POST" action="{{ url_for('add_internship') }}" class="stack-form">
+                    <label>
+                        Company
+                        <input type="text" name="company" placeholder="e.g. Spotify" required>
+                    </label>
 
-@app.route("/add", methods=["POST"])
-def add_internship():
-    company = request.form["company"]
-    role = request.form["role"]
-    status = request.form["status"]
-    deadline = request.form["deadline"]
-    notes = request.form["notes"]
+                    <label>
+                        Role
+                        <input type="text" name="role" placeholder="e.g. Software Engineer Intern" required>
+                    </label>
 
-    conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO internships (company, role, status, deadline, notes) VALUES (?, ?, ?, ?, ?)",
-        (company, role, status, deadline, notes)
-    )
-    conn.commit()
-    conn.close()
+                    <label>
+                        Status
+                        <select name="status" required>
+                            <option value="Saved">Saved</option>
+                            <option value="Applied">Applied</option>
+                            <option value="Interview">Interview</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Offer">Offer</option>
+                        </select>
+                    </label>
 
-    return redirect("/")
+                    <label>
+                        Deadline
+                        <input type="date" name="deadline" required>
+                    </label>
 
-@app.route("/delete/<int:id>", methods=["POST"])
-def delete_internship(id):
-    conn = get_db_connection()
-    conn.execute("DELETE FROM internships WHERE id = ?", (id,))
-    conn.commit()
-    conn.close()
+                    <label>
+                        Notes
+                        <textarea name="notes" placeholder="Recruiter name, link, next steps..."></textarea>
+                    </label>
 
-    return redirect("/")
+                    <button type="submit">Add to tracker</button>
+                </form>
+            </aside>
 
-@app.route("/edit/<int:id>")
-def edit_internship(id):
-    conn = get_db_connection()
-    internship = conn.execute("SELECT * FROM internships WHERE id = ?", (id,)).fetchone()
-    conn.close()
-    return render_template("edit.html", internship=internship)
+            <section class="main-panel">
+                <div class="toolbar">
+                    <div>
+                        <p class="eyebrow">Pipeline</p>
+                        <h2>Applications</h2>
+                    </div>
 
-@app.route("/update/<int:id>", methods=["POST"])
-def update_internship(id):
-    company = request.form["company"]
-    role = request.form["role"]
-    status = request.form["status"]
-    deadline = request.form["deadline"]
-    notes = request.form["notes"]
+                    <form method="GET" action="{{ url_for('home') }}" class="filter-bar">
+                        <input
+                            type="text"
+                            name="search"
+                            placeholder="Search company or role"
+                            value="{{ search_query }}"
+                        >
 
-    conn = get_db_connection()
-    conn.execute("""
-        UPDATE internships
-        SET company = ?, role = ?, status = ?, deadline = ?, notes = ?
-        WHERE id = ?
-    """, (company, role, status, deadline, notes, id))
-    conn.commit()
-    conn.close()
+                        <select name="status">
+                            <option value="All" {% if selected_status == "All" or selected_status == "" %}selected{% endif %}>All</option>
+                            <option value="Saved" {% if selected_status == "Saved" %}selected{% endif %}>Saved</option>
+                            <option value="Applied" {% if selected_status == "Applied" %}selected{% endif %}>Applied</option>
+                            <option value="Interview" {% if selected_status == "Interview" %}selected{% endif %}>Interview</option>
+                            <option value="Rejected" {% if selected_status == "Rejected" %}selected{% endif %}>Rejected</option>
+                            <option value="Offer" {% if selected_status == "Offer" %}selected{% endif %}>Offer</option>
+                        </select>
 
-    return redirect("/")
+                        <select name="sort">
+                            <option value="newest" {% if sort_order == "newest" %}selected{% endif %}>Newest</option>
+                            <option value="deadline_asc" {% if sort_order == "deadline_asc" %}selected{% endif %}>Deadline ↑</option>
+                            <option value="deadline_desc" {% if sort_order == "deadline_desc" %}selected{% endif %}>Deadline ↓</option>
+                        </select>
 
-if __name__ == "__main__":
-    init_db()
-    app.run(debug=True)
+                        <button type="submit">Filter</button>
+                    </form>
+                </div>
+
+                {% if internships %}
+                    <div class="application-list">
+                        {% for internship in internships %}
+                            <article class="application-card">
+                                <div class="application-top">
+                                    <div>
+                                        <h3>{{ internship["company"] }}</h3>
+                                        <p>{{ internship["role"] }}</p>
+                                    </div>
+
+                                    <span class="status status-{{ internship['status'] | lower }}">
+                                        {{ internship["status"] }}
+                                    </span>
+                                </div>
+
+                                <div class="application-details">
+                                    <span>
+                                        Deadline: <strong>{{ internship["deadline"] }}</strong>
+                                    </span>
+
+                                    <span class="deadline-badge {{ internship['deadline_status'] | lower | replace(' ', '-') }}">
+                                        {{ internship["deadline_status"] }}
+                                    </span>
+                                </div>
+
+                                {% if internship["notes"] %}
+                                    <p class="notes">{{ internship["notes"] }}</p>
+                                {% else %}
+                                    <p class="notes muted">No notes added yet.</p>
+                                {% endif %}
+
+                                <div class="actions">
+                                    <a href="{{ url_for('edit_internship', id=internship['id']) }}">
+                                        Edit
+                                    </a>
+
+                                    <form method="POST" action="{{ url_for('delete_internship', id=internship['id']) }}">
+                                        <button type="submit" class="delete-btn">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>No applications found</h3>
+                        <p>Add your first internship application or clear your filters.</p>
+                    </div>
+                {% endif %}
+            </section>
+        </section>
+    </main>
+
+</body>
+</html>
